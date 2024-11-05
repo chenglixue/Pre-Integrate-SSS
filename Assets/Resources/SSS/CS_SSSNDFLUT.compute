@@ -1,0 +1,32 @@
+#pragma once
+#include "Assets/Resources/Library/Common.hlsl"
+
+#pragma kernel SSSNDFLUT
+
+RWTexture2D<float4> _RW_OutputTex;
+
+float4 _NDFLUTSize;
+
+float PHBeckmann( float NoH, float m ) 
+{   
+    float alpha = acos( NoH );
+    float ta = tan( alpha );
+    float val = 1.0 / (pow2(m) * pow4(NoH)) * exp(-(ta*ta) / pow2(m));   
+    return val; 
+} 
+
+float GetNDFLUT(float2 uv)
+{
+    float NoH = uv.x;
+    float roughness = uv.y;
+
+    // Scale the value to fit within [0,1] – invert upon lookup. 
+    return 0.5 * pow( PHBeckmann( NoH, roughness ), 0.1 ); 
+}
+
+[numthreads(8,8,1)]
+void SSSNDFLUT (uint3 id : SV_DispatchThreadID)
+{
+    float2 uv = ((float2)id.xy + 0.5f) / _NDFLUTSize;
+    _RW_OutputTex[id.xy] = GetNDFLUT(uv);
+}
